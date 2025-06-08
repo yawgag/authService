@@ -1,4 +1,4 @@
-package authHandler
+package transport
 
 import (
 	"authService/gen/auth"
@@ -18,6 +18,10 @@ import (
 type AuthServer struct {
 	auth.UnimplementedAuthServiceServer
 	service service.Auth
+}
+
+func NewAuthServerHandler(service service.Auth) *AuthServer {
+	return &AuthServer{service: service}
 }
 
 func GetAccessTokenFromMD(ctx context.Context) (string, error) {
