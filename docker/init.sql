@@ -15,7 +15,7 @@ create table users(
 	
 create table sessions(
     sessionId UUID primary key default gen_random_uuid(),
-    uid UUID not null references users(id),
+    uid UUID not null references users(uid) on delete cascade,
     exp bigint not null
 	);
 

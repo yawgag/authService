@@ -7,6 +7,7 @@ import (
 	"authService/internal/storage"
 	"authService/internal/storage/postgres"
 	"authService/internal/transport"
+	"context"
 	"fmt"
 	"net"
 
@@ -30,6 +31,12 @@ func main() {
 	repos := storage.NewAuthRepo(dbConnPool)
 	services := service.NewAuthService(repos, cfg)
 	handler := transport.NewAuthServerHandler(services)
+
+	err = services.AddFirstUser(context.Background())
+	if err != nil {
+		fmt.Println("Main file internal error: ", err.Error())
+		return
+	}
 
 	lis, err := net.Listen("tcp", cfg.ServerAddress)
 	if err != nil {

@@ -34,6 +34,7 @@ const (
 	AuthService_AdminLogoutUserSessions_FullMethodName = "/authContract.AuthService/AdminLogoutUserSessions"
 	AuthService_UpdateTokens_FullMethodName            = "/authContract.AuthService/UpdateTokens"
 	AuthService_GetPublicRSAKey_FullMethodName         = "/authContract.AuthService/GetPublicRSAKey"
+	AuthService_GetUsersList_FullMethodName            = "/authContract.AuthService/GetUsersList"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -57,6 +58,7 @@ type AuthServiceClient interface {
 	// internal methods
 	UpdateTokens(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Tokens, error)
 	GetPublicRSAKey(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PublicKeyResponse, error)
+	GetUsersList(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetUserResponse], error)
 }
 
 type authServiceClient struct {
@@ -207,6 +209,25 @@ func (c *authServiceClient) GetPublicRSAKey(ctx context.Context, in *emptypb.Emp
 	return out, nil
 }
 
+func (c *authServiceClient) GetUsersList(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetUserResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AuthService_ServiceDesc.Streams[0], AuthService_GetUsersList_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[GetUsersRequest, GetUserResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AuthService_GetUsersListClient = grpc.ServerStreamingClient[GetUserResponse]
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -228,6 +249,7 @@ type AuthServiceServer interface {
 	// internal methods
 	UpdateTokens(context.Context, *emptypb.Empty) (*Tokens, error)
 	GetPublicRSAKey(context.Context, *emptypb.Empty) (*PublicKeyResponse, error)
+	GetUsersList(*GetUsersRequest, grpc.ServerStreamingServer[GetUserResponse]) error
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -279,6 +301,9 @@ func (UnimplementedAuthServiceServer) UpdateTokens(context.Context, *emptypb.Emp
 }
 func (UnimplementedAuthServiceServer) GetPublicRSAKey(context.Context, *emptypb.Empty) (*PublicKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPublicRSAKey not implemented")
+}
+func (UnimplementedAuthServiceServer) GetUsersList(*GetUsersRequest, grpc.ServerStreamingServer[GetUserResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method GetUsersList not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -553,6 +578,17 @@ func _AuthService_GetPublicRSAKey_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_GetUsersList_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetUsersRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AuthServiceServer).GetUsersList(m, &grpc.GenericServerStream[GetUsersRequest, GetUserResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AuthService_GetUsersListServer = grpc.ServerStreamingServer[GetUserResponse]
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -617,6 +653,12 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_GetPublicRSAKey_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetUsersList",
+			Handler:       _AuthService_GetUsersList_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "api/proto/authContract/authService.proto",
 }

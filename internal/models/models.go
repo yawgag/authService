@@ -10,7 +10,7 @@ type Role struct {
 }
 
 type User struct {
-	UID          uuid.UUID `json:"uid"`
+	Uid          uuid.UUID `json:"uid"`
 	Login        string    `json:"login"`
 	Email        string    `json:"email"`
 	Password     *string   `json:"password"`
@@ -20,7 +20,7 @@ type User struct {
 
 type Session struct {
 	SessionId uuid.UUID `json:"sessionId"`
-	UserId    uuid.UUID `json:"userId"`
+	Uid       uuid.UUID `json:"uid"`
 	Exp       int64     `json:"exp"`
 }
 
@@ -30,7 +30,7 @@ type AuthTokens struct {
 }
 
 type AccessToken struct {
-	UserId     uuid.UUID
-	UserRole   string
-	ExpireTime int64
+	Uid      uuid.UUID
+	UserRole string
+	Exp      int64
 }

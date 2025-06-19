@@ -170,6 +170,7 @@ func (a *AuthServer) UserLogoutAllSessions(ctx context.Context, _ *emptypb.Empty
 }
 
 func (a *AuthServer) NewRole(ctx context.Context, req *pb.NewRoleRequest) (*emptypb.Empty, error) {
+	req.RoleName = strings.ToLower(req.RoleName)
 	err := a.service.AddNewRole(ctx, req.RoleName)
 	if err != nil {
 		respErr := serviceErrors.GRPCError(err)
@@ -182,7 +183,7 @@ func (a *AuthServer) NewRole(ctx context.Context, req *pb.NewRoleRequest) (*empt
 func (a *AuthServer) ChangeUserRole(ctx context.Context, req *pb.ChangeRoleRequest) (*emptypb.Empty, error) {
 	reqUser := &models.User{
 		Login: req.Login,
-		Role:  req.RoleName,
+		Role:  strings.ToLower(req.RoleName),
 	}
 
 	err := a.service.ChangeUserRole(ctx, reqUser)
@@ -203,10 +204,10 @@ func (a *AuthServer) GetUserData(ctx context.Context, req *pb.AdminTargetUserReq
 	}
 
 	respUser := &pb.GetUserResponse{
-		UserId: user.UID.String(),
-		Login:  user.Login,
-		Email:  user.Email,
-		Role:   user.Role,
+		Uid:   user.Uid.String(),
+		Login: user.Login,
+		Email: user.Email,
+		Role:  user.Role,
 	}
 
 	return respUser, nil
@@ -262,4 +263,32 @@ func (a *AuthServer) GetPublicRSAKey(ctx context.Context, _ *emptypb.Empty) (*pb
 		PublicKey: publicKey,
 	}
 	return resp, nil
+}
+
+func (a *AuthServer) GetUsersList(req *pb.GetUsersRequest, stream pb.AuthService_GetUsersListServer) error {
+	if req.PageLimit > 100 || req.PageLimit < 1 {
+		return serviceErrors.BadGetUsersListRequest
+	}
+
+	users, err := a.service.GetUsersList(stream.Context(), int(req.PageLimit), int(req.PageNumber))
+	if err != nil {
+		respErr := serviceErrors.GRPCError(err)
+		return respErr
+	}
+
+	for _, user := range users {
+		outUser := &pb.GetUserResponse{
+			Uid:   user.Uid.String(),
+			Login: user.Login,
+			Email: user.Email,
+			Role:  user.Role,
+		}
+
+		if err := stream.Send(outUser); err != nil {
+			return serviceErrors.CantSendUserFromUsersList
+		}
+	}
+
+	return nil
+
 }

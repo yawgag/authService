@@ -432,7 +432,7 @@ func (x *ChangeEmailRequest) GetNewEmail() string {
 
 type GetUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=userId,proto3" json:"userId,omitempty"`
+	Uid           string                 `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
 	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
@@ -470,9 +470,9 @@ func (*GetUserResponse) Descriptor() ([]byte, []int) {
 	return file_api_proto_authContract_authService_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetUserResponse) GetUserId() string {
+func (x *GetUserResponse) GetUid() string {
 	if x != nil {
-		return x.UserId
+		return x.Uid
 	}
 	return ""
 }
@@ -674,6 +674,58 @@ func (x *LogoutSessionResponse) GetNumberOfDeleteSessions() int32 {
 	return 0
 }
 
+type GetUsersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageLimit     int32                  `protobuf:"varint,1,opt,name=pageLimit,proto3" json:"pageLimit,omitempty"`
+	PageNumber    int32                  `protobuf:"varint,2,opt,name=pageNumber,proto3" json:"pageNumber,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsersRequest) Reset() {
+	*x = GetUsersRequest{}
+	mi := &file_api_proto_authContract_authService_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsersRequest) ProtoMessage() {}
+
+func (x *GetUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_authContract_authService_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsersRequest.ProtoReflect.Descriptor instead.
+func (*GetUsersRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_authContract_authService_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetUsersRequest) GetPageLimit() int32 {
+	if x != nil {
+		return x.PageLimit
+	}
+	return 0
+}
+
+func (x *GetUsersRequest) GetPageNumber() int32 {
+	if x != nil {
+		return x.PageNumber
+	}
+	return 0
+}
+
 var File_api_proto_authContract_authService_proto protoreflect.FileDescriptor
 
 const file_api_proto_authContract_authService_proto_rawDesc = "" +
@@ -701,9 +753,9 @@ const file_api_proto_authContract_authService_proto_rawDesc = "" +
 	"\vnewPassword\x18\x02 \x01(\tR\vnewPassword\"L\n" +
 	"\x12ChangeEmailRequest\x12\x1a\n" +
 	"\bpassword\x18\x01 \x01(\tR\bpassword\x12\x1a\n" +
-	"\bnewEmail\x18\x02 \x01(\tR\bnewEmail\"i\n" +
-	"\x0fGetUserResponse\x12\x16\n" +
-	"\x06userId\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
+	"\bnewEmail\x18\x02 \x01(\tR\bnewEmail\"c\n" +
+	"\x0fGetUserResponse\x12\x10\n" +
+	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\"2\n" +
@@ -714,7 +766,12 @@ const file_api_proto_authContract_authService_proto_rawDesc = "" +
 	"\x11PublicKeyResponse\x12\x1c\n" +
 	"\tpublicKey\x18\x01 \x01(\tR\tpublicKey\"O\n" +
 	"\x15LogoutSessionResponse\x126\n" +
-	"\x16NumberOfDeleteSessions\x18\x01 \x01(\x05R\x16NumberOfDeleteSessions2\xa6\b\n" +
+	"\x16NumberOfDeleteSessions\x18\x01 \x01(\x05R\x16NumberOfDeleteSessions\"O\n" +
+	"\x0fGetUsersRequest\x12\x1c\n" +
+	"\tpageLimit\x18\x01 \x01(\x05R\tpageLimit\x12\x1e\n" +
+	"\n" +
+	"pageNumber\x18\x02 \x01(\x05R\n" +
+	"pageNumber2\xf6\b\n" +
 	"\vAuthService\x12?\n" +
 	"\bRegister\x12\x1d.authContract.RegisterRequest\x1a\x14.authContract.Tokens\x129\n" +
 	"\x05Login\x12\x1a.authContract.LoginRequest\x1a\x14.authContract.Tokens\x128\n" +
@@ -729,7 +786,8 @@ const file_api_proto_authContract_authService_proto_rawDesc = "" +
 	"\x12AdminDeleteAccount\x12$.authContract.AdminTargetUserRequest\x1a\x16.google.protobuf.Empty\x12d\n" +
 	"\x17AdminLogoutUserSessions\x12$.authContract.AdminTargetUserRequest\x1a#.authContract.LogoutSessionResponse\x12<\n" +
 	"\fUpdateTokens\x12\x16.google.protobuf.Empty\x1a\x14.authContract.Tokens\x12J\n" +
-	"\x0fGetPublicRSAKey\x12\x16.google.protobuf.Empty\x1a\x1f.authContract.PublicKeyResponseB\x0fZ\rgen/auth;authb\x06proto3"
+	"\x0fGetPublicRSAKey\x12\x16.google.protobuf.Empty\x1a\x1f.authContract.PublicKeyResponse\x12N\n" +
+	"\fGetUsersList\x12\x1d.authContract.GetUsersRequest\x1a\x1d.authContract.GetUserResponse0\x01B\x0fZ\rgen/auth;authb\x06proto3"
 
 var (
 	file_api_proto_authContract_authService_proto_rawDescOnce sync.Once
@@ -743,7 +801,7 @@ func file_api_proto_authContract_authService_proto_rawDescGZIP() []byte {
 	return file_api_proto_authContract_authService_proto_rawDescData
 }
 
-var file_api_proto_authContract_authService_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_api_proto_authContract_authService_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_api_proto_authContract_authService_proto_goTypes = []any{
 	(*RegisterRequest)(nil),        // 0: authContract.RegisterRequest
 	(*LoginRequest)(nil),           // 1: authContract.LoginRequest
@@ -758,39 +816,42 @@ var file_api_proto_authContract_authService_proto_goTypes = []any{
 	(*AdminTargetUserRequest)(nil), // 10: authContract.AdminTargetUserRequest
 	(*PublicKeyResponse)(nil),      // 11: authContract.PublicKeyResponse
 	(*LogoutSessionResponse)(nil),  // 12: authContract.LogoutSessionResponse
-	(*emptypb.Empty)(nil),          // 13: google.protobuf.Empty
+	(*GetUsersRequest)(nil),        // 13: authContract.GetUsersRequest
+	(*emptypb.Empty)(nil),          // 14: google.protobuf.Empty
 }
 var file_api_proto_authContract_authService_proto_depIdxs = []int32{
 	0,  // 0: authContract.AuthService.Register:input_type -> authContract.RegisterRequest
 	1,  // 1: authContract.AuthService.Login:input_type -> authContract.LoginRequest
-	13, // 2: authContract.AuthService.Logout:input_type -> google.protobuf.Empty
+	14, // 2: authContract.AuthService.Logout:input_type -> google.protobuf.Empty
 	6,  // 3: authContract.AuthService.ChangePassword:input_type -> authContract.ChangePasswordRequest
 	7,  // 4: authContract.AuthService.ChangeEmail:input_type -> authContract.ChangeEmailRequest
 	9,  // 5: authContract.AuthService.UserDeleteAccount:input_type -> authContract.UserDeleteAccRequest
-	13, // 6: authContract.AuthService.UserLogoutAllSessions:input_type -> google.protobuf.Empty
+	14, // 6: authContract.AuthService.UserLogoutAllSessions:input_type -> google.protobuf.Empty
 	3,  // 7: authContract.AuthService.NewRole:input_type -> authContract.NewRoleRequest
 	4,  // 8: authContract.AuthService.ChangeUserRole:input_type -> authContract.ChangeRoleRequest
 	10, // 9: authContract.AuthService.GetUserData:input_type -> authContract.AdminTargetUserRequest
 	10, // 10: authContract.AuthService.AdminDeleteAccount:input_type -> authContract.AdminTargetUserRequest
 	10, // 11: authContract.AuthService.AdminLogoutUserSessions:input_type -> authContract.AdminTargetUserRequest
-	13, // 12: authContract.AuthService.UpdateTokens:input_type -> google.protobuf.Empty
-	13, // 13: authContract.AuthService.GetPublicRSAKey:input_type -> google.protobuf.Empty
-	2,  // 14: authContract.AuthService.Register:output_type -> authContract.Tokens
-	2,  // 15: authContract.AuthService.Login:output_type -> authContract.Tokens
-	13, // 16: authContract.AuthService.Logout:output_type -> google.protobuf.Empty
-	13, // 17: authContract.AuthService.ChangePassword:output_type -> google.protobuf.Empty
-	13, // 18: authContract.AuthService.ChangeEmail:output_type -> google.protobuf.Empty
-	13, // 19: authContract.AuthService.UserDeleteAccount:output_type -> google.protobuf.Empty
-	12, // 20: authContract.AuthService.UserLogoutAllSessions:output_type -> authContract.LogoutSessionResponse
-	13, // 21: authContract.AuthService.NewRole:output_type -> google.protobuf.Empty
-	13, // 22: authContract.AuthService.ChangeUserRole:output_type -> google.protobuf.Empty
-	8,  // 23: authContract.AuthService.GetUserData:output_type -> authContract.GetUserResponse
-	13, // 24: authContract.AuthService.AdminDeleteAccount:output_type -> google.protobuf.Empty
-	12, // 25: authContract.AuthService.AdminLogoutUserSessions:output_type -> authContract.LogoutSessionResponse
-	2,  // 26: authContract.AuthService.UpdateTokens:output_type -> authContract.Tokens
-	11, // 27: authContract.AuthService.GetPublicRSAKey:output_type -> authContract.PublicKeyResponse
-	14, // [14:28] is the sub-list for method output_type
-	0,  // [0:14] is the sub-list for method input_type
+	14, // 12: authContract.AuthService.UpdateTokens:input_type -> google.protobuf.Empty
+	14, // 13: authContract.AuthService.GetPublicRSAKey:input_type -> google.protobuf.Empty
+	13, // 14: authContract.AuthService.GetUsersList:input_type -> authContract.GetUsersRequest
+	2,  // 15: authContract.AuthService.Register:output_type -> authContract.Tokens
+	2,  // 16: authContract.AuthService.Login:output_type -> authContract.Tokens
+	14, // 17: authContract.AuthService.Logout:output_type -> google.protobuf.Empty
+	14, // 18: authContract.AuthService.ChangePassword:output_type -> google.protobuf.Empty
+	14, // 19: authContract.AuthService.ChangeEmail:output_type -> google.protobuf.Empty
+	14, // 20: authContract.AuthService.UserDeleteAccount:output_type -> google.protobuf.Empty
+	12, // 21: authContract.AuthService.UserLogoutAllSessions:output_type -> authContract.LogoutSessionResponse
+	14, // 22: authContract.AuthService.NewRole:output_type -> google.protobuf.Empty
+	14, // 23: authContract.AuthService.ChangeUserRole:output_type -> google.protobuf.Empty
+	8,  // 24: authContract.AuthService.GetUserData:output_type -> authContract.GetUserResponse
+	14, // 25: authContract.AuthService.AdminDeleteAccount:output_type -> google.protobuf.Empty
+	12, // 26: authContract.AuthService.AdminLogoutUserSessions:output_type -> authContract.LogoutSessionResponse
+	2,  // 27: authContract.AuthService.UpdateTokens:output_type -> authContract.Tokens
+	11, // 28: authContract.AuthService.GetPublicRSAKey:output_type -> authContract.PublicKeyResponse
+	8,  // 29: authContract.AuthService.GetUsersList:output_type -> authContract.GetUserResponse
+	15, // [15:30] is the sub-list for method output_type
+	0,  // [0:15] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -807,7 +868,7 @@ func file_api_proto_authContract_authService_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_authContract_authService_proto_rawDesc), len(file_api_proto_authContract_authService_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

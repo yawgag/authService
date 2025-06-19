@@ -45,6 +45,7 @@ type Auth interface {
 	Logout(ctx context.Context, refreshToken string) error
 	ChangePassword(ctx context.Context, accessToken string, password string, newPassword string) error
 	ChangeEmail(ctx context.Context, accessToken string, password string, newEmail string) error
+	GetUsersList(ctx context.Context, pageLimit, pageNumber int) ([]models.User, error)
 
 	DeleteAllUserSessions(ctx context.Context, accessToken string) (int64, error)
 	AdminDeleteAllUserSessions(ctx context.Context, login string) (int64, error)
@@ -71,8 +72,8 @@ func NewAuthService(authRepo storage.AuthInter, cfg *config.Config) *AuthServ {
 
 func (s *TokenHandlerImpl) CreateRefreshToken(ctx context.Context, session *models.Session) (string, error) {
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"sessionId":  session.SessionId,
-		"expireTime": session.Exp,
+		"sessionId": session.SessionId,
+		"exp":       session.Exp,
 	}).SignedString(s.privateKey)
 
 	if err != nil {
@@ -84,29 +85,30 @@ func (s *TokenHandlerImpl) CreateRefreshToken(ctx context.Context, session *mode
 
 func (s *TokenHandlerImpl) CreateAccessToken(ctx context.Context, user *models.User) (string, error) {
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"userId":     user.UID,
-		"userRole":   user.Role,
-		"expireTime": time.Now().Add(15 * time.Minute).Unix(),
+		"uid":      user.Uid,
+		"userRole": user.Role,
+		"exp":      time.Now().Add(15 * time.Minute).Unix(),
 	}).SignedString(s.privateKey)
 
 	if err != nil {
 		return "", fmt.Errorf("CreateAccessToken internal error: %w", err)
 	}
 
-	return accessToken, nil
+	return "Bearer " + accessToken, nil
 }
 
 func (s *TokenHandlerImpl) ParseAccessToken(token string) (*models.AccessToken, error) {
 	tokenClaims, err := s.ParseJwt(token)
 	if err != nil {
+		fmt.Println()
 		return nil, err
 	}
 
-	userIdStr, ok := (*tokenClaims)["userId"].(string)
+	uidStr, ok := (*tokenClaims)["uid"].(string)
 	if !ok {
 		return nil, serviceErrors.BadAccessToken
 	}
-	userId, err := uuid.Parse(userIdStr)
+	uid, err := uuid.Parse(uidStr)
 	if err != nil {
 		return nil, serviceErrors.BadAccessToken
 	}
@@ -116,19 +118,20 @@ func (s *TokenHandlerImpl) ParseAccessToken(token string) (*models.AccessToken, 
 		return nil, serviceErrors.BadAccessToken
 	}
 
-	exp, ok := (*tokenClaims)["expireTime"].(int64)
+	expFloat, ok := (*tokenClaims)["exp"].(float64)
 	if !ok {
 		return nil, serviceErrors.BadAccessToken
 	}
+	exp := int64(expFloat)
 
 	if exp < time.Now().Unix() {
 		return nil, serviceErrors.AccessTokenExpired
 	}
 
 	outToken := &models.AccessToken{
-		UserId:     userId,
-		UserRole:   userRole,
-		ExpireTime: exp,
+		Uid:      uid,
+		UserRole: userRole,
+		Exp:      exp,
 	}
 
 	return outToken, nil
@@ -141,21 +144,21 @@ func (s *TokenHandlerImpl) ParseRefreshToken(token string) (*models.Session, err
 	}
 	sessionIdStr, ok := (*tokenClaims)["sessionId"].(string)
 	if !ok {
-		return nil, serviceErrors.BadRefreshTOken
+		return nil, serviceErrors.BadRefreshToken
 	}
 	sessiondId, err := uuid.Parse(sessionIdStr)
 	if err != nil {
-		return nil, serviceErrors.BadRefreshTOken
+		return nil, serviceErrors.BadRefreshToken
 	}
 
-	exp, ok := (*tokenClaims)["expireTime"].(int64)
+	exp, ok := (*tokenClaims)["exp"].(float64)
 	if !ok {
-		return nil, serviceErrors.BadRefreshTOken
+		return nil, serviceErrors.BadRefreshToken
 	}
 
 	sessionResp := &models.Session{
 		SessionId: sessiondId,
-		Exp:       exp,
+		Exp:       int64(exp),
 	}
 
 	return sessionResp, nil
@@ -229,7 +232,9 @@ func (s *AuthServ) Login(ctx context.Context, user *models.User) (*models.AuthTo
 		return nil, serviceErrors.PasswordDoesntMatch
 	}
 
-	session, err := s.authRepo.CreateSession(ctx, user)
+	fmt.Println("user: ", user)
+	fmt.Println("user from db: ", userFromDb)
+	session, err := s.authRepo.CreateSession(ctx, userFromDb)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +272,7 @@ func (s *AuthServ) ChangePassword(ctx context.Context, accessToken string, passw
 		return err
 	}
 
-	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{UID: token.UserId})
+	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{Uid: token.Uid})
 	if err != nil {
 		return err
 	}
@@ -293,7 +298,7 @@ func (s *AuthServ) ChangeEmail(ctx context.Context, accessToken string, password
 		return err
 	}
 
-	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{UID: token.UserId})
+	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{Uid: token.Uid})
 	if err != nil {
 		return err
 	}
@@ -304,7 +309,7 @@ func (s *AuthServ) ChangeEmail(ctx context.Context, accessToken string, password
 	}
 
 	userFromDb.Email = string(newEmail)
-	err = s.authRepo.ChangePassword(ctx, userFromDb)
+	err = s.authRepo.ChangeEmail(ctx, userFromDb)
 	return err
 }
 
@@ -314,7 +319,7 @@ func (s *AuthServ) DeleteAllUserSessions(ctx context.Context, accessToken string
 		return -1, err
 	}
 
-	numberOfDeletedSessions, err := s.authRepo.DeleteAllUserSessions(ctx, token.UserId)
+	numberOfDeletedSessions, err := s.authRepo.DeleteAllUserSessions(ctx, token.Uid)
 	if err != nil {
 		return -1, err
 	}
@@ -328,7 +333,7 @@ func (s *AuthServ) AdminDeleteAllUserSessions(ctx context.Context, login string)
 		return -1, err
 	}
 
-	numberOfDeletedSessions, err := s.authRepo.DeleteAllUserSessions(ctx, user.UID)
+	numberOfDeletedSessions, err := s.authRepo.DeleteAllUserSessions(ctx, user.Uid)
 	if err != nil {
 		return -1, err
 	}
@@ -377,7 +382,7 @@ func (s *AuthServ) UserDeleteAcc(ctx context.Context, accessToken string, passwo
 		return err
 	}
 
-	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{UID: token.UserId})
+	userFromDb, err := s.authRepo.GetUser(ctx, &models.User{Uid: token.Uid})
 	if err != nil {
 		return err
 	}
@@ -414,7 +419,7 @@ func (s *AuthServ) UpdateAccessToken(ctx context.Context, refreshToken string) (
 		}
 	}
 
-	user, err := s.authRepo.GetUser(ctx, &models.User{UID: session.UserId})
+	user, err := s.authRepo.GetUser(ctx, &models.User{Uid: session.Uid})
 	if err != nil {
 		return nil, err
 	}
@@ -453,10 +458,49 @@ func (s *AuthServ) GetUserByRefreshToken(ctx context.Context, refreshToken strin
 		return nil, err
 	}
 
-	user, err := s.authRepo.GetUser(ctx, &models.User{UID: session.UserId})
+	user, err := s.authRepo.GetUser(ctx, &models.User{Uid: session.Uid})
 	if err != nil {
 		return nil, err
 	}
 
 	return user, nil
+}
+
+func (s *AuthServ) AddFirstUser(ctx context.Context) error {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+	if err != nil {
+		return serviceErrors.CantInitFirstUser
+	}
+	hashStr := string(passwordHash)
+
+	users, err := s.GetUsersList(ctx, 1, 1)
+	if err != nil {
+		return fmt.Errorf("AddFirstUser internal error: %w", err)
+	}
+	if len(users) != 0 {
+		return nil
+	}
+
+	firstUser := &models.User{
+		Login:        "admin",
+		PasswordHash: &hashStr,
+		Email:        "admin",
+		Role:         "admin",
+	}
+
+	_, err = s.authRepo.AddNewUser(ctx, firstUser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (s *AuthServ) GetUsersList(ctx context.Context, pageLimit, pageNumber int) ([]models.User, error) {
+	out, err := s.authRepo.GetUsersList(ctx, pageLimit, pageNumber)
+	if err != nil {
+		return nil, fmt.Errorf("GetUsersList internal error: %w", err)
+	}
+	return out, nil
 }

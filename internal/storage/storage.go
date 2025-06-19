@@ -19,14 +19,15 @@ import (
 
 type AuthInter interface {
 	AddNewUser(ctx context.Context, user *models.User) (*models.User, error) // add new user in database
-	GetUser(ctx context.Context, user *models.User) (*models.User, error)    // return all user info, if user doesn't exist, throw error. Require UID or login in "user" struct arguments
-	ChangePassword(ctx context.Context, user *models.User) error             // require UID and new password in "user" struct arguments
-	ChangeEmail(ctx context.Context, user *models.User) error                // require UID and new email in "user" struct arguments
-	DeleteUser(ctx context.Context, user *models.User) error                 // return serviceErrors.UserDoesntExist if wrong uid. Require UID in "user" struct arguments
+	GetUser(ctx context.Context, user *models.User) (*models.User, error)    // return all user info, if user doesn't exist, throw error. Require Uid or login in "user" struct arguments
+	ChangePassword(ctx context.Context, user *models.User) error             // require Uid and new password in "user" struct arguments
+	ChangeEmail(ctx context.Context, user *models.User) error                // require Uid and new email in "user" struct arguments
+	DeleteUser(ctx context.Context, user *models.User) error                 // return serviceErrors.UserDoesntExist if wrong uid. Require Uid in "user" struct arguments
+	GetUsersList(ctx context.Context, pageLimit int, pageNumber int) ([]models.User, error)
 
-	GetRoleIdByName(ctx context.Context, role string) (int, error)
+	GetRoleIdByName(ctx context.Context, role string) (uuid.UUID, error)
 	AddNewRole(ctx context.Context, roleName string) (*models.Role, error)
-	UpdateUserRole(ctx context.Context, user *models.User) error // update user role. Require UID and new user role in "user" struct argument
+	UpdateUserRole(ctx context.Context, user *models.User) error // update user role. Require Uid and new user role in "user" struct argument
 
 	CreateSession(ctx context.Context, user *models.User) (*models.Session, error) // create new session in database
 	GetSession(ctx context.Context, sessionId uuid.UUID) (*models.Session, error)  // for updating access token. After this methos should call GetUserRole
@@ -46,17 +47,18 @@ func NewAuthRepo(pool postgres.DBPool) *authRepo {
 	}
 }
 
-func (r *authRepo) GetRoleIdByName(ctx context.Context, role string) (int, error) {
-	query := `select id from role
+func (r *authRepo) GetRoleIdByName(ctx context.Context, role string) (uuid.UUID, error) {
+	query := `select id 
+				from role
 				where name = $1`
 
-	var id int
+	var id uuid.UUID
 	err := r.pool.QueryRow(ctx, query, role).Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return -1, serviceErrors.RoleDoesntExist
+			return uuid.Nil, serviceErrors.RoleDoesntExist
 		}
-		return -1, fmt.Errorf("GetRoleIdByName internal error: %w", err)
+		return uuid.Nil, fmt.Errorf("GetRoleIdByName internal error: %w", err)
 	}
 	return id, nil
 }
@@ -64,7 +66,7 @@ func (r *authRepo) GetRoleIdByName(ctx context.Context, role string) (int, error
 func (r *authRepo) AddNewUser(ctx context.Context, user *models.User) (*models.User, error) {
 	query := `insert into users(login, email, password, roleId)
 						values ($1, $2, $3, $4)
-						returning id`
+						returning uid`
 
 	roleId, err := r.GetRoleIdByName(ctx, user.Role)
 	if err != nil {
@@ -73,7 +75,7 @@ func (r *authRepo) AddNewUser(ctx context.Context, user *models.User) (*models.U
 
 	respUser := *user
 
-	err = r.pool.QueryRow(ctx, query, user.Login, user.Email, user.PasswordHash, roleId).Scan(&respUser.UID)
+	err = r.pool.QueryRow(ctx, query, user.Login, user.Email, user.PasswordHash, roleId).Scan(&respUser.Uid)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -95,18 +97,19 @@ func (r *authRepo) CreateSession(ctx context.Context, user *models.User) (*model
 	query := `insert into sessions(uid, exp)
 				values(
 					$1, $2
-				)`
+				)
+				returning sessionId`
 	exp := time.Now().Add(time.Hour * 24 * 30).Unix()
 	var sessionId uuid.UUID
 
-	err := r.pool.QueryRow(ctx, query, user.UID, exp).Scan(&sessionId)
+	err := r.pool.QueryRow(ctx, query, user.Uid, exp).Scan(&sessionId)
 	if err != nil {
 		return nil, fmt.Errorf("CreateSession internal error: %w", err)
 	}
 
 	session := &models.Session{
 		SessionId: sessionId,
-		UserId:    user.UID,
+		Uid:       user.Uid,
 		Exp:       exp,
 	}
 
@@ -120,7 +123,7 @@ func (r *authRepo) GetSession(ctx context.Context, sessionId uuid.UUID) (*models
 
 	session := &models.Session{}
 
-	err := r.pool.QueryRow(ctx, query, sessionId).Scan(&session.UserId, &session.Exp)
+	err := r.pool.QueryRow(ctx, query, sessionId).Scan(&session.Uid, &session.Exp)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, serviceErrors.SessionDoesntExist
@@ -139,7 +142,7 @@ func (r *authRepo) GetUser(ctx context.Context, user *models.User) (*models.User
 
 	respUser := &models.User{}
 
-	err := r.pool.QueryRow(ctx, query, user.UID, user.Login).Scan(&respUser.UID, &respUser.Login, &respUser.Email, &respUser.PasswordHash, &respUser.Role)
+	err := r.pool.QueryRow(ctx, query, user.Uid, user.Login).Scan(&respUser.Uid, &respUser.Login, &respUser.Email, &respUser.PasswordHash, &respUser.Role)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -178,14 +181,14 @@ func (r *authRepo) AddNewRole(ctx context.Context, roleName string) (*models.Rol
 func (r *authRepo) UpdateUserRole(ctx context.Context, user *models.User) error {
 	query := `update users
 				set roleId = $1
-				where uid = $2`
+				where login = $2`
 
 	roleId, err := r.GetRoleIdByName(ctx, user.Role)
 	if err != nil {
 		return err
 	}
 
-	res, err := r.pool.Exec(ctx, query, roleId, user.UID)
+	res, err := r.pool.Exec(ctx, query, roleId, user.Login)
 	if err != nil {
 		return fmt.Errorf("UpdateUserRole internal error: %w", err)
 	}
@@ -230,7 +233,7 @@ func (r *authRepo) ChangePassword(ctx context.Context, user *models.User) error 
 				set password = $1
 				where uid = $2`
 
-	res, err := r.pool.Exec(ctx, query, user.PasswordHash, user.UID)
+	res, err := r.pool.Exec(ctx, query, user.PasswordHash, user.Uid)
 	if err != nil {
 		return err
 	}
@@ -247,7 +250,7 @@ func (r *authRepo) ChangeEmail(ctx context.Context, user *models.User) error {
 				set email = $1
 				where uid = $2`
 
-	res, err := r.pool.Exec(ctx, query, user.Email, user.UID)
+	res, err := r.pool.Exec(ctx, query, user.Email, user.Uid)
 	if err != nil {
 		return err
 	}
@@ -261,33 +264,15 @@ func (r *authRepo) ChangeEmail(ctx context.Context, user *models.User) error {
 
 func (r *authRepo) DeleteUser(ctx context.Context, user *models.User) error {
 	queryDeleteAcc := `delete from users
-				where uid = $1`
-	queryDeleteSessions := `delete from sessions
-				where uid = $1`
+				where uid = $1 or login = $2`
 
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("DeleteUser internal error: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	resA, err := tx.Exec(ctx, queryDeleteAcc, user.UID)
+	resA, err := r.pool.Exec(ctx, queryDeleteAcc, user.Uid, user.Login)
 	if err != nil {
 		return fmt.Errorf("DeleteUser internal error: %w", err)
 	}
 	if resA.RowsAffected() == 0 {
 		return serviceErrors.UserDoesntExist
 	}
-
-	resS, err := r.pool.Exec(ctx, queryDeleteSessions, user.UID)
-	if err != nil {
-		return fmt.Errorf("DeleteUser internal error: %w", err)
-	}
-	if resS.RowsAffected() < 1 {
-		return fmt.Errorf("DeleteUser internal error: %w", err)
-	}
-
-	tx.Commit(ctx)
 
 	return nil
 }
@@ -307,4 +292,38 @@ func (r *authRepo) UpdateSessionExpireTime(ctx context.Context, sessionId uuid.U
 	}
 
 	return exp, nil
+}
+
+func (r *authRepo) GetUsersList(ctx context.Context, pageLimit int, pageNumber int) ([]models.User, error) {
+	query := `select u.uid, u.login, u.email, r.name
+				from users as u
+				join role as r on u.roleId = r.id
+				limit $1 offset $2;`
+
+	offset := pageLimit * (pageNumber - 1)
+
+	rows, err := r.pool.Query(ctx, query, pageLimit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("GetUsersList internal error: %w", err)
+	}
+
+	defer rows.Close()
+
+	var out []models.User
+
+	for rows.Next() {
+		var row models.User
+		err := rows.Scan(
+			&row.Uid,
+			&row.Login,
+			&row.Email,
+			&row.Role,
+		)
+		if err != nil {
+			continue
+		}
+		out = append(out, row)
+	}
+
+	return out, nil
 }

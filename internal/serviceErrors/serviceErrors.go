@@ -10,7 +10,7 @@ import (
 
 var (
 	UserAlreadyExist = errors.New("User already exist")
-	UserDoesntExist  = errors.New("User does not exit")
+	UserDoesntExist  = errors.New("User does not exist")
 	RoleAlreadyExist = errors.New("Role already exist")
 	RoleDoesntExist  = errors.New("Role does not exist")
 
@@ -27,10 +27,15 @@ var (
 	RefreshTokenNotFound = errors.New("Refresh token not found")
 
 	BadAccessToken  = errors.New("Invalid access token")
-	BadRefreshTOken = errors.New("Invalid refresh token")
+	BadRefreshToken = errors.New("Invalid refresh token")
 
 	AccessTokenExpired  = errors.New("Access token has expired")
 	RefreshTokenExpired = errors.New("Refresh token has expired")
+
+	CantInitFirstUser = errors.New("Can't init first user")
+
+	CantSendUserFromUsersList = errors.New("Can't send user from users list")
+	BadGetUsersListRequest    = errors.New("Wrong data in GetUsersList method request")
 )
 
 func GRPCError(err error) error {
@@ -53,12 +58,16 @@ func GRPCError(err error) error {
 		return status.Error(codes.InvalidArgument, PasswordDoesntMatch.Error())
 	case errors.Is(err, BadAccessToken):
 		return status.Error(codes.InvalidArgument, BadAccessToken.Error())
-	case errors.Is(err, BadRefreshTOken):
-		return status.Error(codes.InvalidArgument, BadRefreshTOken.Error())
+	case errors.Is(err, BadRefreshToken):
+		return status.Error(codes.InvalidArgument, BadRefreshToken.Error())
 	case errors.Is(err, AccessTokenExpired):
 		return status.Error(codes.PermissionDenied, AccessTokenExpired.Error())
 	case errors.Is(err, RefreshTokenExpired):
 		return status.Error(codes.PermissionDenied, RefreshTokenExpired.Error())
+	case errors.Is(err, CantSendUserFromUsersList):
+		return status.Error(codes.Internal, CantSendUserFromUsersList.Error())
+	case errors.Is(err, BadGetUsersListRequest):
+		return status.Error(codes.InvalidArgument, BadGetUsersListRequest.Error())
 
 	default:
 		log.Printf("[GRPCError] Unmapped error: %v", err)
