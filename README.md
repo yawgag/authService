@@ -184,7 +184,7 @@ Internal function to get public RSA key to decode jwt tokens.
                     
 Variable  | Note
 ------------- | -------------
--  | -
+--  | --
 
 - `GetUserData` 
 Returns all user info: uid, login, email, role.
