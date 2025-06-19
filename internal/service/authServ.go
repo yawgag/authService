@@ -57,6 +57,7 @@ type Auth interface {
 	AdminDeleteUserAcc(ctx context.Context, user *models.User) error
 	UserDeleteAcc(ctx context.Context, refreshToken string, password string) error
 
+	GetUserFromRefreshToken(ctx context.Context, token string) (*models.User, error)
 	UpdateAccessToken(ctx context.Context, refreshToken string) (*models.AuthTokens, error)
 	GetPublicKey(ctx context.Context) string
 }
@@ -503,4 +504,25 @@ func (s *AuthServ) GetUsersList(ctx context.Context, pageLimit, pageNumber int) 
 		return nil, fmt.Errorf("GetUsersList internal error: %w", err)
 	}
 	return out, nil
+}
+
+func (s *AuthServ) GetUserFromRefreshToken(ctx context.Context, token string) (*models.User, error) {
+	tokenInfo, err := s.tokensHandler.ParseRefreshToken(token)
+	if err != nil {
+		respErr := serviceErrors.GRPCError(err)
+		return nil, respErr
+	}
+
+	session, err := s.authRepo.GetSession(ctx, tokenInfo.SessionId)
+	if err != nil {
+		respErr := serviceErrors.GRPCError(err)
+		return nil, respErr
+	}
+
+	user, err := s.authRepo.GetUser(ctx, &models.User{Uid: session.Uid})
+	if err != nil {
+		respErr := serviceErrors.GRPCError(err)
+		return nil, respErr
+	}
+	return user, nil
 }

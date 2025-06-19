@@ -9,6 +9,8 @@ import (
 )
 
 var (
+	NotEnoughPrivileges = errors.New("Not Enough Privileges. Wrong user role.")
+
 	UserAlreadyExist = errors.New("User already exist")
 	UserDoesntExist  = errors.New("User does not exist")
 	RoleAlreadyExist = errors.New("Role already exist")
@@ -68,6 +70,8 @@ func GRPCError(err error) error {
 		return status.Error(codes.Internal, CantSendUserFromUsersList.Error())
 	case errors.Is(err, BadGetUsersListRequest):
 		return status.Error(codes.InvalidArgument, BadGetUsersListRequest.Error())
+	case errors.Is(err, NotEnoughPrivileges):
+		return status.Error(codes.InvalidArgument, NotEnoughPrivileges.Error())
 
 	default:
 		log.Printf("[GRPCError] Unmapped error: %v", err)

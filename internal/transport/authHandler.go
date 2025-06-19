@@ -9,6 +9,7 @@ import (
 	"context"
 	"strings"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -291,4 +292,53 @@ func (a *AuthServer) GetUsersList(req *pb.GetUsersRequest, stream pb.AuthService
 
 	return nil
 
+}
+
+func (a *AuthServer) RoleInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	adminMethods := map[string]struct{}{
+		"/authContract.AuthService/NewRole":                 {},
+		"/authContract.AuthService/AdminDeleteAccount":      {},
+		"/authContract.AuthService/AdminLogoutUserSessions": {},
+		"/authContract.AuthService/ChangeUserRole":          {},
+	}
+
+	moderatorMethods := map[string]struct{}{
+		"/authContract.AuthService/ChangeUserRole": {},
+	}
+
+	// TODO: i forgot about DRY?
+	if _, ok := adminMethods[info.FullMethod]; ok {
+		token, err := GetRefreshTokenFromMD(ctx)
+		if err != nil {
+			respErr := serviceErrors.GRPCError(err)
+			return nil, respErr
+		}
+
+		user, err := a.service.GetUserFromRefreshToken(ctx, token)
+		if err != nil {
+			respErr := serviceErrors.GRPCError(err)
+			return nil, respErr
+		}
+		if user.Role != "admin" {
+			return nil, serviceErrors.NotEnoughPrivileges
+		}
+
+	} else if _, ok := moderatorMethods[info.FullMethod]; ok {
+		token, err := GetRefreshTokenFromMD(ctx)
+		if err != nil {
+			respErr := serviceErrors.GRPCError(err)
+			return nil, respErr
+		}
+
+		user, err := a.service.GetUserFromRefreshToken(ctx, token)
+		if err != nil {
+			respErr := serviceErrors.GRPCError(err)
+			return nil, respErr
+		}
+		if user.Role != "moderator" {
+			return nil, serviceErrors.NotEnoughPrivileges
+		}
+	}
+
+	return handler(ctx, req)
 }

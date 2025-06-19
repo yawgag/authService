@@ -43,8 +43,9 @@ func main() {
 		fmt.Println(err.Error())
 		return
 	}
-
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(handler.RoleInterceptor),
+	)
 	pb.RegisterAuthServiceServer(grpcServer, handler)
 
 	fmt.Println("gRPC server started")
