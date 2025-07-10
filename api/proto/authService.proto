@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package authContract;
+
+option go_package = "gen/auth;auth";
+
+service AuthService {
+    // user methods
+    rpc Register(RegisterRequest) returns (Tokens);
+    rpc Login(LoginRequest) returns (Tokens);
+    rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty); // refresh token in metadata(refresh-token)
+
+    rpc ChangePassword(ChangePasswordRequest) returns (google.protobuf.Empty); // access token in metadata(authorization)
+    rpc ChangeEmail(ChangeEmailRequest) returns (google.protobuf.Empty); // access token in metadata
+
+    rpc UserDeleteAccount(UserDeleteAccRequest) returns (google.protobuf.Empty); // refresh token in metadata
+    rpc UserLogoutAllSessions(google.protobuf.Empty) returns (LogoutSessionResponse); // access token in metadata
+
+
+    // admin methods
+    rpc NewRole(NewRoleRequest) returns (google.protobuf.Empty);
+    rpc ChangeUserRole(ChangeRoleRequest) returns (google.protobuf.Empty); // access token in metadata
+
+    rpc GetUserData(AdminTargetUserRequest) returns (GetUserResponse);
+
+    rpc AdminDeleteAccount(AdminTargetUserRequest) returns (google.protobuf.Empty);
+    rpc AdminLogoutUserSessions(AdminTargetUserRequest) returns (LogoutSessionResponse);
+
+
+    // internal methods
+    rpc UpdateTokens(google.protobuf.Empty) returns (Tokens);
+    rpc GetPublicRSAKey(google.protobuf.Empty) returns (PublicKeyResponse);
+    rpc GetUsersList(GetUsersRequest) returns (stream GetUserResponse);
+}
+
+message RegisterRequest {
+    string login = 1;
+    string password = 2;
+    string email = 3;
+}
+
+message LoginRequest {
+    string login = 1;
+    string password = 2;
+}
+
+message Tokens {
+    string accessToken = 1;
+    string refreshToken = 2;
+}
+
+message NewRoleRequest {
+    string roleName = 1;
+}
+
+message ChangeRoleRequest {
+    string login = 1;
+    string roleName = 2;
+}
+
+message UpdateAccessRequest {
+    string refreshTokenId = 1;
+}
+
+message ChangePasswordRequest {
+    string oldPassword = 1;
+    string newPassword = 2;
+}
+
+message ChangeEmailRequest {
+    string password = 1;
+    string newEmail = 2;
+}
+
+message GetUserResponse {
+    string uid = 1;
+    string login = 2;
+    string email = 3;
+    string role = 4;
+}
+
+message UserDeleteAccRequest {
+    string password = 1;
+}
+
+message AdminTargetUserRequest {
+    string login = 1;
+}
+
+message PublicKeyResponse {
+    string publicKey = 1;
+}
+
+message LogoutSessionResponse {
+    int32 NumberOfDeleteSessions = 1;
+}
+
+message GetUsersRequest {
+    int32 pageLimit = 1;
+    int32 pageNumber = 2;
+}
