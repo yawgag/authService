@@ -87,6 +87,7 @@ func (s *TokenHandlerImpl) CreateRefreshToken(ctx context.Context, session *mode
 func (s *TokenHandlerImpl) CreateAccessToken(ctx context.Context, user *models.User) (string, error) {
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 		"uid":      user.Uid,
+		"login":    user.Login,
 		"userRole": user.Role,
 		"exp":      time.Now().Add(15 * time.Minute).Unix(),
 	}).SignedString(s.privateKey)
@@ -114,6 +115,11 @@ func (s *TokenHandlerImpl) ParseAccessToken(token string) (*models.AccessToken, 
 		return nil, serviceErrors.BadAccessToken
 	}
 
+	login, ok := (*tokenClaims)["login"].(string)
+	if !ok || login == "" {
+		return nil, serviceErrors.BadAccessToken
+	}
+
 	userRole, ok := (*tokenClaims)["userRole"].(string)
 	if !ok {
 		return nil, serviceErrors.BadAccessToken
@@ -131,6 +137,7 @@ func (s *TokenHandlerImpl) ParseAccessToken(token string) (*models.AccessToken, 
 
 	outToken := &models.AccessToken{
 		Uid:      uid,
+		Login:    login,
 		UserRole: userRole,
 		Exp:      exp,
 	}
